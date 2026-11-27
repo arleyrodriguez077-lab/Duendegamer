@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Duendes del jardín · Juego de atención</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<main class="app">
+
+  <!-- MENÚ -->
+  <section id="screen-menu" class="screen">
+    <h1>Duendes del jardín</h1>
+    <p class="lead">Un duende se asoma por los agujeros. Tócalo antes de que se esconda.</p>
+
+    <div class="panel">
+      <fieldset>
+        <legend>Nivel</legend>
+        <label><input type="radio" name="nivel" value="facil" checked> Tranquilo</label>
+        <label><input type="radio" name="nivel" value="medio"> Medio</label>
+        <label><input type="radio" name="nivel" value="dificil"> Ágil</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Duración</legend>
+        <label><input type="radio" name="duracion" value="60" checked> 1 min</label>
+        <label><input type="radio" name="duracion" value="120"> 2 min</label>
+        <label><input type="radio" name="duracion" value="180"> 3 min</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Extras</legend>
+        <label><input type="checkbox" id="opt-distractores"> Hongos distractores (no los toques)</label>
+        <label><input type="checkbox" id="opt-sonido"> Sonido suave</label>
+      </fieldset>
+    </div>
+
+    <button id="btn-start" class="btn primary">Empezar</button>
+
+    <details class="history">
+      <summary>Mis últimas sesiones</summary>
+      <ul id="history-list"></ul>
+      <button id="btn-clear" class="btn link" type="button">Borrar historial</button>
+    </details>
+
+    <p class="note">
+      Es un ejercicio de apoyo para entrenar la atención. No reemplaza el tratamiento ni
+      las indicaciones de tu equipo de salud. Sesiones cortas y con pausas funcionan mejor.
+      Si te sientes saturado, pausa o termina cuando quieras.
+    </p>
+  </section>
+
+  <!-- JUEGO -->
+  <section id="screen-game" class="screen" hidden>
+    <div class="hud" aria-live="off">
+      <div><span class="hud-label">Tiempo</span><strong id="hud-time">60</strong></div>
+      <div><span class="hud-label">Aciertos</span><strong id="hud-hits">0</strong></div>
+      <div><span class="hud-label">Se escaparon</span><strong id="hud-missed">0</strong></div>
+      <button id="btn-pause" class="btn small" type="button">Pausa</button>
+    </div>
+
+    <div id="board" class="board" role="group" aria-label="Mesa con 9 agujeros"></div>
+
+    <p id="status" class="status" role="status" aria-live="polite">&nbsp;</p>
+    <p class="hint">También puedes usar las teclas del 1 al 9 (como el teclado numérico).</p>
+
+    <div id="pause-overlay" class="overlay" hidden>
+      <div class="overlay-box">
+        <h2>En pausa</h2>
+        <p>Respira. Sigues cuando quieras.</p>
+        <button id="btn-resume" class="btn primary" type="button">Continuar</button>
+        <button id="btn-quit" class="btn link" type="button">Terminar sesión</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTADO -->
+  <section id="screen-result" class="screen" hidden>
+    <h2>Sesión terminada</h2>
+    <p id="result-msg" class="lead"></p>
+    <dl class="stats" id="result-stats"></dl>
+    <button id="btn-again" class="btn primary">Jugar otra vez</button>
+    <button id="btn-menu" class="btn link">Volver al menú</button>
+  </section>
+
+</main>
+<script src="js/game.js"></script>
+</body>
+</html>
