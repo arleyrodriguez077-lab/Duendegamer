@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Duendes del jardín · Juego de atención</title>
+  <style>
+/* Paleta calmada, poco estímulo visual, sin parpadeos */
+:root {
+  --fondo: #e6efec;
+  --texto: #1d3338;
+  --suave: #4d6a6a;
+  --panel: #f6faf8;
+  --borde: #b9cfca;
+  --pasto: #a7cdaa;
+  --tierra: #7a5c45;
+  --tierra-oscura: #3b2b21;
+  --duende: #5aa469;
+  --gorro: #d1664b;
+  --hongo: #7d8fc4;
+  --acierto: #3f9a63;
+  --alerta: #c98a2b;
+  --foco: #1f5fbf;
+}
+* { box-sizing: border-box; }
+html { font-size: 18px; }
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  line-height: 1.5;
+}
+.app { max-width: 560px; margin: 0 auto; padding: 1.2rem 1rem 3rem; }
+h1 { font-size: 1.9rem; margin: .4rem 0; letter-spacing: -.01em; }
+h2 { font-size: 1.5rem; margin: .4rem 0; }
+.lead { color: var(--suave); margin: 0 0 1.2rem; }
+[hidden] { display: none !important; }
+
+.panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 14px; padding: .6rem 1rem; margin-bottom: 1.2rem; }
+fieldset { border: 0; padding: .5rem 0; margin: 0; }
+fieldset + fieldset { border-top: 1px solid var(--borde); }
+legend { font-weight: 700; padding: 0; margin-bottom: .2rem; }
+fieldset label { display: inline-flex; align-items: center; gap: .4rem; margin: .2rem 1rem .2rem 0; cursor: pointer; }
+input { accent-color: var(--acierto); width: 1.1rem; height: 1.1rem; }
+
+.btn { font: inherit; border: 2px solid var(--texto); background: transparent; color: var(--texto); border-radius: 12px; padding: .7rem 1.2rem; cursor: pointer; min-height: 48px; }
+.btn.primary { background: var(--texto); color: #fff; font-weight: 700; width: 100%; }
+.btn.small { padding: .3rem .9rem; min-height: 40px; }
+.btn.link { border-color: transparent; text-decoration: underline; color: var(--suave); }
+.btn:focus-visible, .hole:focus-visible, summary:focus-visible { outline: 3px solid var(--foco); outline-offset: 3px; }
+
+.history { margin: 1.2rem 0; }
+.history summary { cursor: pointer; font-weight: 700; }
+.history ul { padding-left: 1.1rem; color: var(--suave); font-size: .9rem; }
+.note { font-size: .85rem; color: var(--suave); border-left: 4px solid var(--borde); padding-left: .8rem; }
+
+/* HUD */
+.hud { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .8rem; }
+.hud > div { display: flex; flex-direction: column; line-height: 1.2; }
+.hud-label { font-size: .75rem; color: var(--suave); }
+.hud strong { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+
+/* MESA */
+.board {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  background: var(--pasto); border: 4px solid var(--tierra); border-radius: 22px;
+  padding: 14px; box-shadow: 0 6px 0 var(--tierra-oscura);
+}
+.hole {
+  position: relative; aspect-ratio: 1 / 1; padding: 0; border: 0; background: transparent;
+  cursor: pointer; overflow: hidden; border-radius: 16px; -webkit-tap-highlight-color: transparent;
+}
+.pit { position: absolute; left: 8%; right: 8%; top: 4%; bottom: 22%; overflow: hidden; }
+.creature {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
+  transform: translateY(105%); transition: transform .14s ease-out;
+}
+.hole.up .creature { transform: translateY(0); }
+.hole.hit .creature { transform: translateY(105%) scale(.9); transition-duration: .1s; }
+.creature svg { width: 100%; height: 100%; display: block; }
+/* Borde delantero del agujero: tapa la base del duende */
+.mound {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 46%;
+  background: var(--tierra); border-radius: 50% 50% 16px 16px / 70% 70% 16px 16px;
+  box-shadow: inset 0 14px 0 -4px var(--tierra-oscura);
+}
+.hole.ok { background: rgba(63,154,99,.28); }
+.hole.wrong { background: rgba(201,138,43,.30); }
+.hole.empty { background: rgba(77,106,106,.18); }
+
+.status { min-height: 1.6rem; text-align: center; margin: .8rem 0 .2rem; font-weight: 700; }
+.hint { text-align: center; font-size: .8rem; color: var(--suave); margin: 0; }
+
+.overlay { position: fixed; inset: 0; background: rgba(230,239,236,.94); display: grid; place-items: center; padding: 1rem; z-index: 10; }
+.overlay-box { background: var(--panel); border: 2px solid var(--texto); border-radius: 16px; padding: 1.4rem; max-width: 360px; width: 100%; text-align: center; }
+.overlay-box .btn { margin-top: .6rem; }
+
+.stats { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; background: var(--panel); border: 1px solid var(--borde); border-radius: 14px; padding: 1rem; margin: 0 0 1.2rem; }
+.stats dt { color: var(--suave); }
+.stats dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+#screen-result .btn + .btn { margin-top: .5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .creature, .hole.hit .creature { transition: none; }
+}
+
+</style>
+</head>
+<body>
+<main class="app">
+
+  <!-- MENÚ -->
+  <section id="screen-menu" class="screen">
+    <h1>Duendes del jardín</h1>
+    <p class="lead">Un duende se asoma por los agujeros. Tócalo antes de que se esconda.</p>
+
+    <div class="panel">
+      <fieldset>
+        <legend>Nivel</legend>
+        <label><input type="radio" name="nivel" value="facil" checked> Tranquilo</label>
+        <label><input type="radio" name="nivel" value="medio"> Medio</label>
+        <label><input type="radio" name="nivel" value="dificil"> Ágil</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Duración</legend>
+        <label><input type="radio" name="duracion" value="60" checked> 1 min</label>
+        <label><input type="radio" name="duracion" value="120"> 2 min</label>
+        <label><input type="radio" name="duracion" value="180"> 3 min</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Extras</legend>
+        <label><input type="checkbox" id="opt-distractores"> Hongos distractores (no los toques)</label>
+        <label><input type="checkbox" id="opt-sonido"> Sonido suave</label>
+      </fieldset>
+    </div>
+
+    <button id="btn-start" class="btn primary">Empezar</button>
+
+    <details class="history">
+      <summary>Mis últimas sesiones</summary>
+      <ul id="history-list"></ul>
+      <button id="btn-clear" class="btn link" type="button">Borrar historial</button>
+    </details>
+
+    <p class="note">
+      Es un ejercicio de apoyo para entrenar la atención. No reemplaza el tratamiento ni
+      las indicaciones de tu equipo de salud. Sesiones cortas y con pausas funcionan mejor.
+      Si te sientes saturado, pausa o termina cuando quieras.
+    </p>
+  </section>
+
+  <!-- JUEGO -->
+  <section id="screen-game" class="screen" hidden>
+    <div class="hud" aria-live="off">
+      <div><span class="hud-label">Tiempo</span><strong id="hud-time">60</strong></div>
+      <div><span class="hud-label">Aciertos</span><strong id="hud-hits">0</strong></div>
+      <div><span class="hud-label">Se escaparon</span><strong id="hud-missed">0</strong></div>
+      <button id="btn-pause" class="btn small" type="button">Pausa</button>
+    </div>
+
+    <div id="board" class="board" role="group" aria-label="Mesa con 9 agujeros"></div>
+
+    <p id="status" class="status" role="status" aria-live="polite">&nbsp;</p>
+    <p class="hint">También puedes usar las teclas del 1 al 9 (como el teclado numérico).</p>
+
+    <div id="pause-overlay" class="overlay" hidden>
+      <div class="overlay-box">
+        <h2>En pausa</h2>
+        <p>Respira. Sigues cuando quieras.</p>
+        <button id="btn-resume" class="btn primary" type="button">Continuar</button>
+        <button id="btn-quit" class="btn link" type="button">Terminar sesión</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTADO -->
+  <section id="screen-result" class="screen" hidden>
+    <h2>Sesión terminada</h2>
+    <p id="result-msg" class="lead"></p>
+    <dl class="stats" id="result-stats"></dl>
+    <button id="btn-again" class="btn primary">Jugar otra vez</button>
+    <button id="btn-menu" class="btn link">Volver al menú</button>
+  </section>
+
+</main>
+<script>
+(() => {
+  'use strict';
+
+  /* ---------- Configuración ---------- */
+  // visible = ms que el duende permanece afuera; gap = pausa entre apariciones
+  const NIVELES = {
+    facil:   { visible: 2200, gap: 1100 },
+    medio:   { visible: 1500, gap: 800 },
+    dificil: { visible: 1000, gap: 550 }
+  };
+  const PROB_DISTRACTOR = 0.25;
+  const KEY = 'duendes-atencion-historial';
+
+  /* ---------- Dibujos (SVG) ---------- */
+  const SVG_DUENDE = `
+<svg viewBox="0 0 100 100" aria-hidden="true">
+  <polygon points="50,2 28,38 72,38" fill="#d1664b"/>
+  <rect x="24" y="36" width="52" height="7" rx="3" fill="#a8452f"/>
+  <polygon points="16,60 30,48 30,68" fill="#5aa469"/>
+  <polygon points="84,60 70,48 70,68" fill="#5aa469"/>
+  <ellipse cx="50" cy="62" rx="26" ry="24" fill="#5aa469"/>
+  <circle cx="40" cy="58" r="4.5" fill="#fff"/><circle cx="60" cy="58" r="4.5" fill="#fff"/>
+  <circle cx="41" cy="59" r="2.2" fill="#1d3338"/><circle cx="59" cy="59" r="2.2" fill="#1d3338"/>
+  <path d="M40 74 Q50 82 60 74" stroke="#1d3338" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>`;
+  const SVG_HONGO = `
+<svg viewBox="0 0 100 100" aria-hidden="true">
+  <rect x="38" y="52" width="24" height="44" rx="8" fill="#efe6d6"/>
+  <path d="M8 56 Q50 -6 92 56 Z" fill="#7d8fc4"/>
+  <circle cx="34" cy="38" r="6" fill="#fff"/><circle cx="58" cy="30" r="7" fill="#fff"/>
+  <circle cx="72" cy="46" r="5" fill="#fff"/>
+</svg>`;
+
+  /* ---------- Elementos ---------- */
+  const $ = (s) => document.querySelector(s);
+  const screens = { menu: $('#screen-menu'), game: $('#screen-game'), result: $('#screen-result') };
+  const board = $('#board');
+  const hudTime = $('#hud-time'), hudHits = $('#hud-hits'), hudMissed = $('#hud-missed');
+  const statusEl = $('#status');
+  const pauseOverlay = $('#pause-overlay');
+
+  /* ---------- Mesa de 9 agujeros ---------- */
+  const holes = [];
+  for (let i = 0; i < 9; i++) {
+    const b = document.createElement('button');
+    b.className = 'hole';
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Agujero ' + (i + 1));
+    b.innerHTML = '<div class="pit"><div class="creature"></div></div><div class="mound"></div>';
+    b.addEventListener('pointerdown', (e) => { e.preventDefault(); onHole(i); });
+    b.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onHole(i); } });
+    board.appendChild(b);
+    holes.push(b);
+  }
+
+  /* ---------- Estado ---------- */
+  let st = null;          // estado de la sesión
+  let spawnTimer = null, hideTimer = null, clockTimer = null, fxTimer = null;
+  let audioCtx = null;
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  function show(name) {
+    Object.entries(screens).forEach(([k, el]) => (el.hidden = k !== name));
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------- Sonido (opcional, suave) ---------- */
+  function beep(freq, dur = 0.09) {
+    if (!st || !st.sound) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = freq; g.gain.value = 0.04;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(); o.stop(audioCtx.currentTime + dur);
+    } catch (_) { /* sin audio */ }
+  }
+
+  /* ---------- Flujo de la sesión ---------- */
+  function start() {
+    const nivel = document.querySelector('input[name="nivel"]:checked').value;
+    const dur = parseInt(document.querySelector('input[name="duracion"]:checked').value, 10);
+    st = {
+      nivel, cfg: NIVELES[nivel],
+      distractores: $('#opt-distractores').checked,
+      sound: $('#opt-sonido').checked,
+      timeLeft: dur, total: dur,
+      hits: 0, missed: 0, wrong: 0, empty: 0, rts: [],
+      current: null, last: -1, running: true, paused: false
+    };
+    updateHud(); setStatus('Prepárate…');
+    show('game');
+    clockTimer = setInterval(tick, 1000);
+    schedule(1200);
+  }
+
+  function tick() {
+    if (!st || st.paused) return;
+    st.timeLeft--;
+    updateHud();
+    if (st.timeLeft <= 0) finish();
+  }
+
+  function schedule(delay) {
+    clearTimeout(spawnTimer);
+    spawnTimer = setTimeout(spawn, delay);
+  }
+
+  function spawn() {
+    if (!st || !st.running || st.paused) return;
+    let idx;
+    do { idx = Math.floor(Math.random() * 9); } while (idx === st.last);
+    st.last = idx;
+    const tipo = st.distractores && Math.random() < PROB_DISTRACTOR ? 'hongo' : 'duende';
+    holes[idx].querySelector('.creature').innerHTML = tipo === 'duende' ? SVG_DUENDE : SVG_HONGO;
+    holes[idx].classList.remove('hit');
+    holes[idx].classList.add('up');
+    st.current = { idx, tipo, t0: performance.now() };
+    hideTimer = setTimeout(() => retreat(), st.cfg.visible);
+  }
+
+  // El duende se esconde solo (no fue tocado a tiempo)
+  function retreat() {
+    if (!st || !st.current) return;
+    const { idx, tipo } = st.current;
+    holes[idx].classList.remove('up');
+    st.current = null;
+    if (tipo === 'duende') { st.missed++; setStatus('Se escapó. Sigue atento.'); }
+    updateHud();
+    schedule(st.cfg.gap + rand(0, 350));
+  }
+
+  function onHole(i) {
+    if (!st || !st.running || st.paused) return;
+    const cur = st.current;
+    if (cur && cur.idx === i) {
+      clearTimeout(hideTimer);
+      st.current = null;
+      holes[i].classList.remove('up');
+      holes[i].classList.add('hit');
+      if (cur.tipo === 'duende') {
+        st.hits++; st.rts.push(performance.now() - cur.t0);
+        flash(i, 'ok'); setStatus('¡Bien!'); beep(520);
+      } else {
+        st.wrong++;
+        flash(i, 'wrong'); setStatus('Ese era un hongo. No lo toques.'); beep(260, 0.12);
+      }
+      updateHud();
+      schedule(st.cfg.gap + rand(0, 350));
+    } else {
+      st.empty++;
+      flash(i, 'empty');
+    }
+  }
+
+  function flash(i, cls) {
+    holes[i].classList.add(cls);
+    setTimeout(() => holes[i].classList.remove(cls), 350);
+  }
+
+  /* ---------- Pausa ---------- */
+  function pause() {
+    if (!st || !st.running || st.paused) return;
+    st.paused = true;
+    clearTimeout(spawnTimer); clearTimeout(hideTimer);
+    if (st.current) { holes[st.current.idx].classList.remove('up'); st.current = null; }
+    pauseOverlay.hidden = false;
+    $('#btn-resume').focus();
+  }
+  function resume() {
+    if (!st || !st.paused) return;
+    st.paused = false;
+    pauseOverlay.hidden = true;
+    setStatus('Prepárate…');
+    schedule(1000);
+  }
+
+  /* ---------- Final ---------- */
+  function finish() {
+    if (!st) return;
+    st.running = false;
+    clearInterval(clockTimer); clearTimeout(spawnTimer); clearTimeout(hideTimer);
+    holes.forEach((h) => h.classList.remove('up', 'hit'));
+    pauseOverlay.hidden = true;
+
+    const apariciones = st.hits + st.missed;
+    const precision = apariciones ? Math.round((st.hits / apariciones) * 100) : 0;
+    const rt = st.rts.length ? Math.round(st.rts.reduce((a, b) => a + b, 0) / st.rts.length) : null;
+    const nombres = { facil: 'Tranquilo', medio: 'Medio', dificil: 'Ágil' };
+
+    const filas = [
+      ['Aciertos', st.hits],
+      ['Se escaparon', st.missed],
+      ['Precisión', precision + ' %'],
+      ['Tiempo de reacción medio', rt ? (rt / 1000).toFixed(2) + ' s' : '—'],
+      ['Toques en agujero vacío', st.empty]
+    ];
+    if (st.distractores) filas.push(['Hongos tocados', st.wrong]);
+    $('#result-stats').innerHTML = filas.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+
+    let msg = 'Terminaste una sesión de atención. Eso ya cuenta.';
+    if (precision >= 80) msg = 'Muy buena concentración. Si quieres, prueba el siguiente nivel.';
+    else if (precision >= 50) msg = 'Buen trabajo. La constancia mejora la atención poco a poco.';
+    $('#result-msg').textContent = msg;
+
+    saveHistory({
+      fecha: new Date().toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' }),
+      nivel: nombres[st.nivel], hits: st.hits, missed: st.missed, precision, rt
+    });
+    renderHistory();
+    show('result');
+  }
+
+  /* ---------- Historial (localStorage) ---------- */
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (_) { return []; }
+  }
+  function saveHistory(item) {
+    try {
+      const h = loadHistory(); h.unshift(item);
+      localStorage.setItem(KEY, JSON.stringify(h.slice(0, 10)));
+    } catch (_) { /* sin almacenamiento */ }
+  }
+  function renderHistory() {
+    const h = loadHistory();
+    $('#history-list').innerHTML = h.length
+      ? h.map((x) => `<li>${x.fecha} · ${x.nivel}: ${x.hits} aciertos, ${x.precision} % de precisión</li>`).join('')
+      : '<li>Aún no hay sesiones.</li>';
+  }
+
+  /* ---------- Utilidades de interfaz ---------- */
+  function updateHud() {
+    hudTime.textContent = st.timeLeft;
+    hudHits.textContent = st.hits;
+    hudMissed.textContent = st.missed;
+  }
+  function setStatus(t) {
+    statusEl.textContent = t;
+    clearTimeout(fxTimer);
+    fxTimer = setTimeout(() => { statusEl.innerHTML = '&nbsp;'; }, 1400);
+  }
+  function backToMenu() {
+    if (st) { st.running = false; }
+    clearInterval(clockTimer); clearTimeout(spawnTimer); clearTimeout(hideTimer);
+    holes.forEach((h) => h.classList.remove('up', 'hit'));
+    pauseOverlay.hidden = true;
+    renderHistory();
+    show('menu');
+  }
+
+  /* ---------- Eventos ---------- */
+  $('#btn-start').addEventListener('click', start);
+  $('#btn-pause').addEventListener('click', pause);
+  $('#btn-resume').addEventListener('click', resume);
+  $('#btn-quit').addEventListener('click', finish);
+  $('#btn-again').addEventListener('click', start);
+  $('#btn-menu').addEventListener('click', backToMenu);
+  $('#btn-clear').addEventListener('click', () => { try { localStorage.removeItem(KEY); } catch (_) {} renderHistory(); });
+
+  // Teclas 1-9 con la disposición del teclado numérico (7 8 9 arriba)
+  document.addEventListener('keydown', (e) => {
+    if (screens.game.hidden) return;
+    if (e.key === 'Escape' || e.key.toLowerCase() === 'p') { st && st.paused ? resume() : pause(); return; }
+    if (/^[1-9]$/.test(e.key)) {
+      const d = parseInt(e.key, 10) - 1;
+      onHole((2 - Math.floor(d / 3)) * 3 + (d % 3));
+    }
+  });
+
+  renderHistory();
+})();
+
+</script>
+</body>
+  </html>
+  
